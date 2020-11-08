@@ -15,6 +15,7 @@ class User(SqlAlchemyBase):
     discord_id = sqlalchemy.Column(sqlalchemy.String)
 
     def __repr__(self):
-        return f"Рейтинг: {self.rating}, кол-во игр за предателя: {self.count_impostor}, кол-во игр\
-за члена экипажа: {self.count_crew},\nкол-во выиграных игр за предателя\
-: {self.impostor_win}, кол-во выиграных игр за члена экипажа: {self.crew_win}"
+        return f"Рейтинг: {self.rating}\n \
+Кол-во игр за предателя: {self.count_impostor} \nКол-во игр\
+за члена экипажа: {self.count_crew},\nКол-во выиграных игр за предателя\
+: {self.impostor_win}\nКол-во выиграных игр за члена экипажа: {self.crew_win}"

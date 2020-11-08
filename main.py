@@ -1,4 +1,5 @@
 import io
+from random import randint
 
 import discord
 import requests
@@ -19,6 +20,19 @@ def check_rating():
     session = db_session.create_session()
     for user in session.query(User):
         user.rating = (user.impostor_win + user.crew_win) * 2 - user.failed_game
+    session.commit()
+
+
+def output_list(res):
+    session = db_session.create_session()
+    res = sorted(res, key=lambda x: (x[1], x[0]), reverse=True)
+    result = ""
+    for i in range(1, 1 + len(res)):
+        idx = session.query(User).filter(User.discord_id == res[i - 1][0]).first().id
+        name = session.query(Names).filter(Names.owner_id == idx).all()
+        name = name[randint(0, len(name)-1)].name
+        result += name.title() + ": " + str(res[i - 1][1]) + "\n"
+    return result
 
 
 def get_my_files(content):
@@ -47,120 +61,140 @@ class AmongAssBot(discord.Client):
         global GAME
         session = db_session.create_session()
         url = ''
+        whats_on_photo = ""
         author = message.author
         print(message.content)
         print(author)
-        if "кот" in message.content.lower():
-            response = requests.get('https://api.thecatapi.com/v1/images/search')
-            json_response = response.json()
-            url = json_response[0]['url']
-        elif "собака" in message.content.lower():
-            response = requests.get('https://dog.ceo/api/breeds/image/random')
-            json_response = response.json()
-            url = json_response['message']
-        elif "начать игру" in message.content.lower():
-            GAME = Game(0, 0, "", "")
-            session.add(GAME)
-            session.commit()
-            await message.channel.send(GAME.id)
-        elif "побед" in message.content.lower():
-            fin_word = "никого"
-            for word in message.content.lower().split():
-                if "импостер" in word:
-                    for name in GAME.imposters.split(", "):
-                        indx = session.query(Names).filter(Names.name == name).first().owner_id
-                        session.query(User).filter(User.id == indx).first().imposter_win += 1
-                    fin_word = "импостеров"
-                elif "экипаж" in word:
-                    for name in GAME.crew.split(", "):
-                        indx = session.query(Names).filter(Names.name == name).first().owner_id
-                        session.query(User).filter(User.id == indx).first().crew_win += 1
-                    fin_word = "экипаж"
-            await message.channel.send(f"поздравляю {fin_word} с победой")
-            session.commit()
-        elif "добавить имя -" in message.content.lower():
-            user = session.query(User).filter(User.discord_id == str(author)).first()
-            name = Names(message.content.lower().split("- ")[1], user.id)
-            session.add(name)
-            names = list(session.query(Names).filter(Names.owner_id == user.id).all())
-            await message.channel.send(f"Имена: {', '.join([name.name for name in names])}")
-        elif "топ" in message.content.lower():
-            check_rating()
-            if "импостер" in message.content.lower():
-                res = [(user.discord_id, user.impostor_win) for user in session.query(User)]
-                res = sorted(res, key=lambda x: (x[1], x[0]))
-                for i in range(1, 1 + len(res)):
-                    await message.channel.send(
-                        str(i) + ") " + "\t".join((res[i - 1][0], str(res[i - 1][1]))))
-            elif "экипаж" in message.content.lower():
-                res = [(user.discord_id, user.crew_win) for user in session.query(User)]
-                res = sorted(res, key=lambda x: (x[1], x[0]))
-                for i in range(1, len(res) + 1):
-                    await message.channel.send(
-                        str(i) + ") " + "\t".join((res[i - 1][0], str(res[i - 1][1]))))
-            else:
-                res = [(user.discord_id, user.rating) for user in session.query(User)]
-                res = sorted(res, key=lambda x: (x[1], x[0]))
-                for i in range(1, 1 + len(res)):
-                    await message.channel.send(
-                        str(i) + ") " + "\t".join((res[i - 1][0], str(res[i - 1][1]))))
-
-        elif "экипажа:" in message.content.lower() and "член" in message.content.lower():
-            crew = list(map(lambda x: x.lower(), message.content.split(": ")[1].split(", ")))
-            for name in session.query(Names):
-                if name.name in crew:
-                    session.query(User).filter(User.id == name.owner_id).first().count_crew += 1
-            GAME.crew = ", ".join(crew)
-            GAME.numb_of_crew = int(message.content[0])
-            session.commit()
-            await message.channel.send(
-                f"в список экипажа внесены {GAME.numb_of_crew}: " + GAME.crew)
-        elif "экипаж" == message.content.lower():
-            await message.channel.send(f"список экипажа: " + GAME.crew)
-        elif "импостер" in message.content.lower() and (
-                "1" in message.content.lower() or "2" in message.content.lower()):
-            imposters = message.content.split(": ")[1].split(", ")
-            for name in imposters:
-                name = name.lower()
-                if not session.query(Names).filter(Names.name == name):
-                    session.commit()
-                    await message.channel.send("В БД нет имени " + name)
+        if str(author) != "AmongAss#3527":
+            if "кот" == message.content.lower() or "кошка" == message.content.lower():
+                whats_on_photo = "cat"
+                response = requests.get('https://api.thecatapi.com/v1/images/search')
+                json_response = response.json()
+                url = json_response[0]['url']
+            elif "собака" == message.content.lower() or "кабель" == message.content.lower():
+                whats_on_photo = "dog"
+                response = requests.get('https://dog.ceo/api/breeds/image/random')
+                json_response = response.json()
+                url = json_response['message']
+            elif "начать игру" in message.content.lower():
+                GAME = Game(0, 0, "", "")
+                session.add(GAME)
+                session.commit()
+                await message.channel.send(GAME.id)
+            elif "побед" in message.content.lower():
+                fin_word = "никого"
+                for word in message.content.lower().split():
+                    if "импостер" in word:
+                        for name in GAME.imposters.split(", "):
+                            indx = session.query(Names).filter(Names.name == name).first().owner_id
+                            session.query(User).filter(User.id == indx).first().impostor_win += 1
+                        for name in GAME.crew.split(", "):
+                            indx = session.query(Names).filter(Names.name == name).first().owner_id
+                            session.query(User).filter(User.id == indx).first().failed_game += 1
+                        fin_word = "импостеров"
+                    elif "экипаж" in word:
+                        for name in GAME.crew.split(", "):
+                            indx = session.query(Names).filter(Names.name == name).first().owner_id
+                            session.query(User).filter(User.id == indx).first().crew_win += 1
+                        for name in GAME.imposters.split(", "):
+                            indx = session.query(Names).filter(Names.name == name).first().owner_id
+                            session.query(User).filter(User.id == indx).first().failed_game += 1
+                        fin_word = "экипаж"
+                await message.channel.send(f"поздравляю {fin_word} с победой")
+                session.commit()
+            elif "случайное число" in message.content.lower():
+                if "от" in message.content.lower() and "до" in message.content.lower():
+                    frst_numb = int(message.content.lower().split()[-3])
+                    secnd_numb = int(message.content.lower().split()[-1])
+                    await message.channel.send(randint(frst_numb, secnd_numb))
                 else:
-                    n = session.query(Names).filter(Names.name == name).first().owner_id
-                    session.query(User).filter(User.id == n).first().count_impostor += 1
-            GAME.numb_of_imposters = int(message.content[0])
-            GAME.imposters = ", ".join(imposters)
-            session.commit()
-            await message.channel.send(
-                f"в список импосторов внесены {GAME.numb_of_imposters}: " + GAME.imposters)
-        elif "импостер" in message.content.lower():
-            await message.channel.send(f"список импосторов: " + GAME.imposters)
-        elif "профиль" in message.content.lower():
-            session = db_session.create_session()
-            res = None
-            for user in session.query(User):
-                print(user.discord_id)
-                if user.discord_id == str(author):
-                    res = user
-            session.commit()
-            await message.channel.send(str(res))
-        elif "помощь" in message.content.lower():
-            await message.channel.send(
-                "Привет, я бот по игре AmongUs. Я веду статистику игр для каждого игрока.\n \
+                    await message.channel.send(randint(0, 100))
+            elif "фото" == message.content.lower():
+                whats_on_photo = "random"
+                url = f"https://picsum.photos/{randint(200, 1600)}/{randint(200, 1600)}"
+            elif "добавить имя -" in message.content.lower():
+                user = session.query(User).filter(User.discord_id == str(author)).first()
+                name = Names(message.content.lower().split("- ")[1], user.id)
+                session.add(name)
+                names = list(session.query(Names).filter(Names.owner_id == user.id).all())
+                session.commit()
+                await message.channel.send(f"Имена: {', '.join([name.name for name in names])}")
+            elif "топ" in message.content.lower():
+                check_rating()
+                if "импостер" in message.content.lower():
+                    res = [(user.discord_id, user.impostor_win) for user in session.query(User)]
+                    result = output_list(res)
+                    await message.channel.send(result)
+                elif "экипаж" in message.content.lower():
+                    res = [(user.discord_id, user.crew_win) for user in session.query(User)]
+                    result = output_list(res)
+                    await message.channel.send(result)
+                else:
+                    check_rating()
+                    res = [(user.discord_id, user.rating) for user in session.query(User)]
+                    result = output_list(res)
+                    await message.channel.send(result)
+            elif "экипажа:" in message.content.lower() and "член" in message.content.lower():
+                crew = list(map(lambda x: x.lower(), message.content.split(": ")[1].split(", ")))
+                for name in session.query(Names):
+                    if name.name in crew:
+                        session.query(User).filter(User.id == name.owner_id).first().count_crew += 1
+                GAME.crew = ", ".join(crew)
+                GAME.numb_of_crew = int(message.content[0])
+                session.commit()
+                await message.channel.send(
+                    f"в список экипажа внесены {GAME.numb_of_crew}: " + GAME.crew)
+            elif "экипаж" == message.content.lower():
+                await message.channel.send(f"список экипажа: " + GAME.crew)
+            elif "импостер" in message.content.lower() and (
+                    "1" in message.content.lower() or "2" in message.content.lower()):
+                imposters = message.content.split(": ")[1].split(", ")
+                for name in imposters:
+                    name = name.lower()
+                    if not session.query(Names).filter(Names.name == name):
+                        session.commit()
+                        await message.channel.send("В БД нет имени " + name)
+                    else:
+                        n = session.query(Names).filter(Names.name == name).first().owner_id
+                        session.query(User).filter(User.id == n).first().count_impostor += 1
+                GAME.numb_of_imposters = int(message.content[0])
+                GAME.imposters = ", ".join(imposters)
+                session.commit()
+                await message.channel.send(
+                    f"в список импосторов внесены {GAME.numb_of_imposters}: " + GAME.imposters)
+            elif "импостер" in message.content.lower():
+                await message.channel.send(f"список импосторов: " + GAME.imposters)
+            elif "профиль" in message.content.lower():
+                session = db_session.create_session()
+                res = None
+                for user in session.query(User):
+                    print(user.discord_id)
+                    if user.discord_id == str(author):
+                        res = user
+                session.commit()
+                await message.channel.send(str(res))
+            elif "помощь" in message.content.lower():
+                await message.channel.send(
+                    "Привет, я бот по игре AmongUs. Я веду статистику игр для каждого игрока.\n \
 Ты можешь посмотреть свой профиль написав в чат 'профиль'. \n \
 Также я могу показать тебе топ импостеров, экипажей и просто топ самых лучших игроков. \
 Для этого напиши в чат 'топ игроков/топ импостеров/топ экипажа.'\n\
 При старте игры напишите в чат 'начать игру', а после напишите мне кто был импостером, а кто членом экипажа\
 '1 или 2 импостера: А, Б' и '(число) членов экипажа: А, Б, В'\
 и кто выиграл 'победа импостеров/экипажа' или 'победил экипаж/импостеров'\n \
- ")
-        elif "конец" in message.content.lower():
-            session.commit()
+Кстати, ты можешь добавить себе игровой ник, чтобы твоё имя не мелькало в списках предателей ;). "
+                )
         if url:
             response = requests.get(url)
             if response.status_code == 200:
-                await message.channel.send(f"И тебе привет, {message.author}",
-                                           files=get_my_files(response.content))
+                if whats_on_photo == "random":
+                    await message.channel.send(files=get_my_files(response.content))
+                elif whats_on_photo == "cat":
+                    await message.channel.send(f"Ах ты любитель кошек, {message.author}",
+                                               files=get_my_files(response.content))
+                elif whats_on_photo == "dog":
+                    await message.channel.send(f"Ах ты любитель собак, {message.author}",
+                                               files=get_my_files(response.content))
 
 
 client = AmongAssBot()
