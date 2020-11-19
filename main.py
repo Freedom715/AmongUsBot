@@ -13,6 +13,7 @@ from data import db_session
 from data.__all_models import *
 from data.game import Game
 from data.users import User
+from pic_function import *
 
 db_session.global_init("db/AmongAss.sqlite")
 
@@ -25,6 +26,11 @@ ROLES_ID = {"детектив I ранга": 774184288303448075,
             "убийца I ранга": 774185571072868373,
             "убийца II ранга": 774185704217116672,
             "убийца III ранга": 774185839377776680}
+ImageFilters = {"случайные пиксели": random_pixels_color,
+                "чёрно-белые пиксели": bw_pixels,
+                "осветление": prosvet,
+                "негатив": negativ,
+                "затемнени": zatemn}
 
 
 def check_rating():
@@ -56,6 +62,7 @@ def save_image(path, url, incr=True):
             out = open(path, "wb")
         out.write(response.content)
         out.close()
+        return path + str(len(files) + 1) + ".jpg"
 
 
 def get_my_files(content):
@@ -138,6 +145,33 @@ class AmongAssBot(discord.Client):
                     print(member)
                     await member.edit(mute=False)
                 await message.channel.send("Говорить можно")
+            elif "<@" in message.content.lower() and len(message.content.lower().split()) == 1:
+                if "768013620730134528" in message.content:
+                    await message.channel.send("Иду, иду",
+                                               file=discord.File("static/фото/autocalls/ТАНЯ.jpg"))
+                elif "710796981764882444" in message.content.lower():
+                    await message.channel.send("Доделываю тату и иду",
+                                               file=discord.File("static/фото/autocalls/ЕГОР.jpg"))
+                elif "500302418425282560" in message.content.lower():
+                    await message.channel.send("Я сейчас немного занят, вот вам пока моё фото",
+                                               file=discord.File(
+                                                   f"static/фото/autocalls/{randint(1, 4)}.jpg"))
+                elif "584385862947569681" in message.content.lower():
+                    await message.channel.send("Контракты сами себя не выполнят, выполню приду")
+                elif "551476310879240193" in message.content.lower():
+                    await message.channel.send(
+                        f"{choice(('Артём', 'Деня'))} сам себя не выгуляет. Скоро приду.")
+                elif "322764019721306112" in message.content.lower():
+                    await message.channel.send(
+                        "Зачем я вернулась в кс? **Bomb has been planted** Чёрт, скоро приду.")
+                elif "704739275329110028" in message.content.lower():
+                    await message.channel.send("Зачем кто-то вызвал шлюх?")
+                elif "436582679299751938" in message.content.lower():
+                    await message.channel.send(f"ГЫГЫ ГАГА пошёл нахуй {message.author}")
+                elif "708037859864739890" in message.content.lower():
+                    await message.channel.send("Доедаю стрипсы из KFC. Мне вкусно, не зовите")
+                elif "699592093491920897" in message.content.lower():
+                    await message.channel.send("Я кропива")
             elif "побед" in message.content.lower():
                 fin_word = ""
                 for word in message.content.lower().split():
@@ -172,6 +206,8 @@ class AmongAssBot(discord.Client):
                 url = f"https://picsum.photos/{randint(200, 1600)}/{randint(200, 1600)}"
             elif "доброе утро всем" in message.content.lower():
                 await message.channel.send("Доброе утро @everyone")
+            elif "спокойной ночи всем" in message.content.lower():
+                await message.channel.send("Спокойной ночи @everyone")
             elif "добавить имя -" in message.content.lower():
                 user = session.query(User).filter(User.discord_id == str(author)).first()
                 name = Names(message.content.lower().split("- ")[1], user.id)
@@ -206,21 +242,45 @@ class AmongAssBot(discord.Client):
                     f"в список экипажа внесены {GAME.numb_of_crew}: " + GAME.crew)
             elif "экипаж" == message.content.lower():
                 await message.channel.send(f"список экипажа: " + GAME.crew)
-            elif "добавить фото" in message.content.lower() and message.attachments:
+            elif "залп!" == message.content.lower():
+                await message.channel.send("Пиф-паф")
+            elif "обработай фото" in message.content.lower():
+                try:
+                    url = message.attachments[0].url
+                    name = save_image("static/change/", url, incr=True)
+                    a = message.content.split(", ")
+                    color = 'r'
+                    numb = 100
+                    kol_vo = 1
+                    up_or_right = 'up'
+                    coeff = 1
+                    if "рамка" in message.content.lower():
+                        numb = int(list(filter(lambda x: "рамка" in x, a))[0].split()[1])
+                    if "цвет" in message.content.lower():
+                        color = list(filter(lambda x: "рамка" in x, a))[0].split()[1]
+                    filt = list(filter(lambda x: a[0].split()[2:] in x, ImageFilters.keys()))[0]
+                    image_filter(name, "result.png", ImageFilters[filt], color=color, numb=numb,
+                                 kol_vo=kol_vo, up_or_right=up_or_right, coeff=coeff)
+                    await message.channel.send(file=discord.File("result.png"))
+                except Exception as e:
+                    return "Упс! не получилось"
+            elif "добавь фото" in message.content.lower() and message.attachments:
                 url = message.attachments[0].url
-                if len(message.content.split()) > 2:
+                if "рандом" in message.content.lower():
+                    save_image(f"static/фото/15/", url)
+                    await message.channel.send("Добавлено фото в рандом")
+                elif len(message.content.split()) > 2:
                     for name in message.content.lower().split()[2:]:
                         name = session.query(Names).filter(
-                            Names.name == name).first().owner_id
-                        save_image(f"static/фото/{name.id}/", url)
+                            Names.name == name).first()
+                        save_image(f"static/фото/{name.owner_id}/", url)
                         await message.channel.send(
                             "Добавлено новое фото " + message.content.lower().split()[2])
                 else:
-                    name = session.query(User).filter(
-                        User.discord_id == str(author)).first()
+                    name = session.query(User).filter(User.discord_id == str(author)).first()
                     save_image(f"static/фото/{name.id}/", url)
                     await message.channel.send("Добавлено новое ваше фото")
-            elif "фото" in message.content.lower() and len(message.content.split()) == 2:
+            elif "покажи фото" in message.content.lower() and len(message.content.split()) == 2:
                 name = session.query(Names).filter(
                     Names.name == message.content.lower().split()[1]).first()
                 path = f"static/фото/{name.owner_id}/"
@@ -317,43 +377,42 @@ class AmongAssBot(discord.Client):
                 await message.channel.send(
                     file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
             elif "похож" in message.content.lower():
-                if "кошк" in message.content.lower() or "собак" in message.content.lower():
-                    dct = {"Abyssinian": "Абиссинский кот", "Bengal": "Бенгальский кот",
-                           "Birman": "Бирманская кошка", "Bombay": "Бомбей",
-                           "British_Shorthair": "Британская Короткошерстная Кошка",
-                           "Egyptian_Mau": "Египетский Мау", "Maine_Coon": "Мейн-кун",
-                           "Persian": "Персидский кот", "Ragdoll": "Рэгдолл",
-                           "Russian_Blue": "Русская Голубая",
-                           "Siamese": "Сиамская кошка", "Sphynx": "Сфинкс",
-                           "american_bulldog": "американский бульдог",
-                           "american_pit_bull_terrier": "американский питбультерьер",
-                           "basset_hound": "Бассет",
-                           "beagle": "Бигль", "boxer": "боксер", "chihuahua": "чихуахуа",
-                           "english_cocker_spaniel": "английский кокер-спаниель",
-                           "english_setter": "английский сеттер",
-                           "german_shorthaired": "немецкий курцхаар",
-                           "great_pyrenees": "Пиренейская горная собака",
-                           "havanese": "Гаванский бишон",
-                           "japanese_chin": "Японский Хин", "keeshond": "Кеесхонд",
-                           "leonberger": "Леонбергер",
-                           "miniature_pinscher": "Миниатюрный пинчер",
-                           "newfoundland": "Ньюфауленд", "pomeranian": "Померанский шпиц",
-                           "pug": "Мопс", "saint_bernard": "Сенбернар", "samoyed": "Самоед",
-                           "scottish_terrier": "Шотландский терьер", "shiba_inu": "Сиба-Ину",
-                           "staffordshire_bull_terrier": "Стаффордширский бультерьер",
-                           "wheaten_terrier": "Ирландский мягкошёрстный пшеничный терьер",
-                           "yorkshire_terrier": "Йоркширский терьер", "bom_bom": "Дед Бом-бом",
-                           "bushemi": "Стив Бушеми и его глаза", "goblin": "Дмитрий (Гоблин) Пучков",
-                           "leopard": "Леопард", "lion": "Лев", "people": "обычный человек",
-                           "pepe": "лягушонок Пепе",
-                           "sheldon": "Шелдон Купер (Теория Большого взрыва)",
-                           "tiger": "Тигр", "yoda": "малыш Йода (Мандалорец)"}
-                    url = message.attachments[0].url
-                    save_image("static/analize.jpg", url, incr=False)
-                    name = analyze_image_dog("/static/analize.jpg".lstrip("/"))
-                    await message.channel.send(
-                        "Хм... Очень похоже на породу " + dct[str(name[0]).split()[0]],
-                        file=discord.File(f"static/neuro/{name[0]}.jpg"))
+                dct = {"Abyssinian": "Абиссинский кот", "Bengal": "Бенгальский кот",
+                       "Birman": "Бирманская кошка", "Bombay": "Бомбей",
+                       "British_Shorthair": "Британская Короткошерстная Кошка",
+                       "Egyptian_Mau": "Египетский Мау", "Maine_Coon": "Мейн-кун",
+                       "Persian": "Персидский кот", "Ragdoll": "Рэгдолл",
+                       "Russian_Blue": "Русская Голубая",
+                       "Siamese": "Сиамская кошка", "Sphynx": "Сфинкс",
+                       "american_bulldog": "американский бульдог",
+                       "american_pit_bull_terrier": "американский питбультерьер",
+                       "basset_hound": "Бассет",
+                       "beagle": "Бигль", "boxer": "боксер", "chihuahua": "чихуахуа",
+                       "english_cocker_spaniel": "английский кокер-спаниель",
+                       "english_setter": "английский сеттер",
+                       "german_shorthaired": "немецкий курцхаар",
+                       "great_pyrenees": "Пиренейская горная собака",
+                       "havanese": "Гаванский бишон",
+                       "japanese_chin": "Японский Хин", "keeshond": "Кеесхонд",
+                       "leonberger": "Леонбергер",
+                       "miniature_pinscher": "Миниатюрный пинчер",
+                       "newfoundland": "Ньюфауленд", "pomeranian": "Померанский шпиц",
+                       "pug": "Мопс", "saint_bernard": "Сенбернар", "samoyed": "Самоед",
+                       "scottish_terrier": "Шотландский терьер", "shiba_inu": "Сиба-Ину",
+                       "staffordshire_bull_terrier": "Стаффордширский бультерьер",
+                       "wheaten_terrier": "Ирландский мягкошёрстный пшеничный терьер",
+                       "yorkshire_terrier": "Йоркширский терьер", "bom_bom": "Дед Бом-бом",
+                       "bushemi": "Стив Бушеми и его глаза", "goblin": "Дмитрий (Гоблин) Пучков",
+                       "leopard": "Леопард", "lion": "Лев", "people": "обычный человек",
+                       "pepe": "лягушонок Пепе",
+                       "sheldon": "Шелдон Купер (Теория Большого взрыва)",
+                       "tiger": "Тигр", "yoda": "малыш Йода (Мандалорец)"}
+                url = message.attachments[0].url
+                save_image("static/analize.jpg", url, incr=False)
+                name = analyze_image_dog("/static/analize.jpg".lstrip("/"))
+                await message.channel.send(
+                    "Хм... Очень похоже на породу " + dct[str(name[0]).split()[0]],
+                    file=discord.File(f"static/neuro/{name[0]}.jpg"))
         if url:
             response = requests.get(url)
             if response.status_code == 200:
