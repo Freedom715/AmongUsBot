@@ -115,7 +115,8 @@ class AmongAssBot(discord.Client):
             await send(text=f"Я думаю, что это обезьяна на {randint(0, 100)}%")
         elif len(
                 message.attachments) > 0 and "обезьяна" in msg and "какая" in msg:
-            await send(text=f"Я думаю, что это {choice(['шимпанзе', 'гибон', 'пажилой гибон', 'орангутан', 'макака', 'красножопая обезьяна'])}")
+            await send(
+                text=f"Я думаю, что это {choice(['шимпанзе', 'гибон', 'пажилой гибон', 'орангутан', 'макака', 'красножопая обезьяна'])}")
         print(author)
         if str(author) != "AmongAss#3527":
             if "кот" == msg or "кошка" == msg:
@@ -135,14 +136,24 @@ class AmongAssBot(discord.Client):
             elif "начать игру" in msg:
                 GAME = Game(0, 0, "", "")
                 session.add(GAME)
+                players = []
+                for member in author.voice.channel.members:
+                    players.append(
+                        session.query(User).filter(User.discord_id == str(member)).first())
+                players_name = list(
+                    map(lambda x: session.query(Names).filter(Names.owner_id == x.id).first(), players))
+                players_name = [x.name for x in players_name]
+                print(players_name)
+                print(players)
+                GAME.crew = ", ".join(players_name)
                 session.commit()
-                await send(text=GAME.id)
+                await send(text="В список игроков внесены: " + ", ".join(players_name))
             elif "!мут" == msg:
-                for member in message.author.voice.channel.members:
+                for member in author.voice.channel.members:
                     print(member)
                     await member.edit(mute=True)
             elif "!анмут" == msg:
-                for member in message.author.voice.channel.members:
+                for member in author.voice.channel.members:
                     print(member)
                     await member.edit(mute=False)
                 await send(text="Говорить можно")
@@ -159,10 +170,11 @@ class AmongAssBot(discord.Client):
                 elif "584385862947569681" in msg:
                     await send(text="Контракты сами себя не выполнят, выполню приду")
                 elif "551476310879240193" in msg:
-                    await send(text=f"{choice(('Артём', 'Деня'))} сам себя не выгуляет. Скоро приду.")
+                    await send(
+                        text=f"{choice(('Артём', 'Деня'))} сам себя не выгуляет. Скоро приду.")
                 elif "322764019721306112" in msg:
                     await send(text=
-                        "Зачем я вернулась в кс? **Bomb has been planted** Чёрт, скоро приду.")
+                               "Зачем я вернулась в кс? **Bomb has been planted** Чёрт, скоро приду.")
                 elif "704739275329110028" in msg:
                     await send(text="Зачем кто-то вызвал шлюх?")
                 elif "436582679299751938" in msg:
@@ -240,7 +252,7 @@ class AmongAssBot(discord.Client):
                 GAME.numb_of_crew = int(message.content[0])
                 session.commit()
                 await send(text=
-                    f"в список экипажа внесены {GAME.numb_of_crew}: " + GAME.crew)
+                           f"в список экипажа внесены {GAME.numb_of_crew}: " + GAME.crew)
             elif "экипаж" == msg:
                 await send(text=f"список экипажа: " + GAME.crew)
             elif "залп!" == msg:
@@ -276,7 +288,7 @@ class AmongAssBot(discord.Client):
                             Names.name == name).first()
                         save_image(f"static/фото/{name.owner_id}/", url)
                         await send(text=
-                            "Добавлено новое фото " + msg.split()[2])
+                                   "Добавлено новое фото " + msg.split()[2])
                 else:
                     name = session.query(User).filter(User.discord_id == str(author)).first()
                     save_image(f"static/фото/{name.id}/", url)
@@ -301,9 +313,17 @@ class AmongAssBot(discord.Client):
                         session.query(User).filter(User.id == n).first().count_impostor += 1
                 GAME.numb_of_imposters = int(message.content[0])
                 GAME.imposters = ", ".join(imposters)
+                crew, res = GAME.crew.split(", "), GAME.crew.split(", ")
+                for player in crew:
+                    if player in imposters:
+                        res.remove(player)
+                        GAME.crew = ", ".join(res)
+                GAME.crew = ", ".join(GAME.crew.split(", "))
+                GAME.numb_of_crew = len(GAME.crew.split(", "))
+                GAME.numb_of_imposters = len(imposters)
                 session.commit()
                 await send(text=
-                    f"в список импосторов внесены {GAME.numb_of_imposters}: " + GAME.imposters)
+                           f"в список импосторов внесены {GAME.numb_of_imposters}: " + GAME.imposters)
             elif "импостеры" == msg:
                 await send(text=f"список импосторов: " + GAME.imposters)
             elif "профиль" in msg:
@@ -344,19 +364,19 @@ class AmongAssBot(discord.Client):
                     await author.add_roles(guild.get_role(ROLES_ID["детектив III ранга"]))
                     roles = 'Вам выдан "Детектив III ранга".'
                 await send(text=
-                    ", ".join(
-                        [y.name for y in author.roles[1:]]) + "\n" + roles)
+                           ", ".join(
+                               [y.name for y in author.roles[1:]]) + "\n" + roles)
             elif "помощь" in msg:
                 await send(text=
-                    "Привет, я бот по игре AmongUs. Я веду статистику игр для каждого игрока.\n \
-Ты можешь посмотреть свой профиль написав в чат 'профиль'. \n \
-Также я могу показать тебе топ импостеров, экипажей и просто топ самых лучших игроков. \
-Для этого напиши в чат 'топ игроков/топ импостеров/топ экипажа.'\n\
-При старте игры напишите в чат 'начать игру', а после напишите мне кто был импостером, а кто членом экипажа\
-'1 или 2 импостера: А, Б' и '(число) членов экипажа: А, Б, В'\
-и кто выиграл 'победа импостеров/экипажа' или 'победил экипаж/импостеров'\n \
-Кстати, ты можешь добавить себе игровой ник, чтобы твоё имя не мелькало в списках предателей ;). "
-                )
+                           "Привет, я бот по игре AmongUs. Я веду статистику игр для каждого игрока.\n \
+       Ты можешь посмотреть свой профиль написав в чат 'профиль'. \n \
+       Также я могу показать тебе топ импостеров, экипажей и просто топ самых лучших игроков. \
+       Для этого напиши в чат 'топ игроков/топ импостеров/топ экипажа.'\n\
+       При старте игры напишите в чат 'начать игру', а после напишите мне кто был импостером, а кто членом экипажа\
+       '1 или 2 импостера: А, Б' и '(число) членов экипажа: А, Б, В'\
+       и кто выиграл 'победа импостеров/экипажа' или 'победил экипаж/импостеров'\n \
+       Кстати, ты можешь добавить себе игровой ник, чтобы твоё имя не мелькало в списках предателей ;). "
+                           )
             elif "хуй" in msg:
                 path = f"static/фото/{choice(['4', '6', '8'])}/"
                 files = os.listdir(path=path)
@@ -408,8 +428,8 @@ class AmongAssBot(discord.Client):
                 save_image("static/analize.jpg", url, incr=False)
                 name = analyze_image_dog("/static/analize.jpg".lstrip("/"))
                 await send(text=
-                    "Хм... Очень похоже на породу " + dct[str(name[0]).split()[0]],
-                    file=discord.File(f"static/neuro/{name[0]}.jpg"))
+                           "Хм... Очень похоже на породу " + dct[str(name[0]).split()[0]],
+                           file=discord.File(f"static/neuro/{name[0]}.jpg"))
         if url:
             response = requests.get(url)
             if response.status_code == 200:
