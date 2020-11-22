@@ -328,4 +328,4 @@ def zatemn(pixels, x, y, kol_vo=1, up_or_right='up', coeff=1, **kwargs):
     return pixels
 
 if __name__ == "__main__":
-    image_filter('1.jpg', 'analize.png', negativ, numb=800, color="rgb+")
+    image_filter('2.jpg', 'analize.png', negativ)
