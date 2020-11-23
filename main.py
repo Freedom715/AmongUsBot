@@ -64,10 +64,18 @@ class AmongAssGame():
         self.game = Game(0, 0, "", "")
 
     def get_crew(self):
-        return self.game.crew
+        session = db_session.create_session()
+        players_name = list(
+            map(lambda x: session.query(Names).filter(Names.owner_id == int(x)).first().name,
+                self.game.crew.split(", ")))
+        return ", ".join(players_name)
 
     def get_imposters(self):
-        return self.game.imposters
+        session = db_session.create_session()
+        players_name = list(
+            map(lambda x: session.query(Names).filter(Names.owner_id == int(x)).first().name,
+                self.game.imposters.split(", ")))
+        return ", ".join(players_name)
 
     async def start_game(self, message):
         session = db_session.create_session()
@@ -111,7 +119,7 @@ class AmongAssGame():
         self.game.numb_of_imposters = len(imposters)
         session.commit()
         await message.channel.send(
-            f"в список импосторов внесены {self.game.numb_of_imposters}: " + self.game.imposters)
+            f"в список импосторов внесены {self.game.numb_of_imposters}: " + self.get_imposters())
 
     async def win_func(self, message):
         msg = message.content.lower()
@@ -185,7 +193,8 @@ class AmongAssBot(discord.Client):
                          "детектив III ранга": 774185310786420738,
                          "убийца I ранга": 774185571072868373,
                          "убийца II ранга": 774185704217116672,
-                         "убийца III ранга": 774185839377776680}
+                         "убийца III ранга": 774185839377776680,
+                         "пидорас.": 779712216467243009}
         self.game = Game(0, 0, "", "")
         self.last_photo = 0
         self.guild = self.get_guild(710796793775915098)
@@ -234,9 +243,9 @@ class AmongAssBot(discord.Client):
                                     "Доделываю тату и иду",
                                     discord.File("static/фото/autocalls/ЕГОР.jpg")),
                                 "500302418425282560": (
-                                "Я сейчас немного занят, вот вам пока моё фото",
-                                discord.File(
-                                    f"static/фото/autocalls/{randint(1, 4)}.jpg")),
+                                    "Я сейчас немного занят, вот вам пока моё фото",
+                                    discord.File(
+                                        f"static/фото/autocalls/{randint(1, 4)}.jpg")),
                                 "584385862947569681": (
                                     "Контракты сами себя не выполнят, выполню приду", None),
                                 "551476310879240193": (
@@ -247,7 +256,7 @@ class AmongAssBot(discord.Client):
                                     None),
                                 "704739275329110028": ("Зачем кто-то вызвал шлюх?", None),
                                 "436582679299751938": (
-                                f"ГЫГЫ ГАГА пошёл нахуй {message.author}", None),
+                                    f"ГЫГЫ ГАГА пошёл нахуй {message.author}", None),
                                 "708037859864739890": (
                                     "Доедаю стрипсы из KFC. Мне вкусно, не зовите", None),
                                 "699592093491920897": ("Я кропива", None),
@@ -272,18 +281,55 @@ class AmongAssBot(discord.Client):
         try:
             session = db_session.create_session()
             name = session.query(Names).filter(
-                Names.name == message.content.lower().split()[2:]).first()
+                Names.name == " ".join(message.content.lower().split()[2:])).first()
             if name is None:
                 await self.send(message,
                                 text=f"Имени {name} не существует. Добавьте его вручную, либо обратитесь к админам")
+                return
             path = f"static/фото/{name.owner_id}/"
             files = os.listdir(path=path)
             path = path + str(randint(1, len(files))) + ".jpg"
+            session.query(User).filter(User.id == name.owner_id).first().count_view += 1
+            session.commit()
             await self.send(message,
                             file=discord.File(path))
         except Exception as e:
+            path = 'Пшл нх'
             await self.send(message,
                             text=f"Упс! Такого файла {path} не существует. Сообщите об этом админу")
+
+    async def check_fucking_rating(self, message):
+        session = db_session.create_session()
+        max_fuck = 0
+        max_user = None
+        guild = self.get_guild(710796793775915098)
+        for user in session.query(User):
+            if user.go_ahead > max_fuck:
+                max_user = user
+                max_fuck = user.go_ahead
+            print(user.tech_id)
+            member = guild.get_member(int(user.tech_id))
+            try:
+                await member.remove_roles(guild.get_role(self.roles_id["пидорас."]))
+            except Exception:
+                pass
+        if max_user is not None:
+            member = guild.get_member(int(max_user.tech_id))
+            await member.add_roles(guild.get_role(self.roles_id["пидорас."]))
+            await self.send(message, text="Новый пидарас. " + max_user.discord_id)
+
+    async def go_ahead(self, message):
+        try:
+            session = db_session.create_session()
+            name = " ".join(message.content.lower().split()[1:])
+            print(name)
+            session.query(User).filter(
+                User.discord_id == self.members_id[name[2:-1].strip("!")]).first().go_ahead += 1
+            session.commit()
+            # await self.check_fucking_rating(message)
+            await self.send(message, text=f"{message.author} послал {name}")
+        except Exception as e:
+            await self.send(message, text=f"Упс! Послать не удалось. " + str(e))
 
     async def on_message(self, message):
         url = ""
@@ -322,6 +368,7 @@ class AmongAssBot(discord.Client):
             elif "случайное фото" == msg:
                 whats_on_photo = "random"
                 url = f"https://picsum.photos/{randint(200, 1600)}/{randint(200, 1600)}"
+
             elif "доброе утро всем" in msg:
                 await self.send(message, text="Доброе утро @everyone")
             elif "спокойной ночи всем" in msg:
@@ -341,11 +388,25 @@ class AmongAssBot(discord.Client):
                     await self.send(message, text=randint(frst_numb, secnd_numb))
                 else:
                     await self.send(message, text=randint(0, 100))
+            elif "пшлнх" in msg or "пошёлнах" in msg:
+                await self.go_ahead(message)
             # функции для игры АмонгАсс
             elif "!мут" == msg:
                 for member in author.voice.channel.members:
                     print(member)
                     await member.edit(mute=True)
+            elif "!мут" in msg and len(msg.split()) >= 2:
+                guild = self.get_guild(710796793775915098)
+                for name in msg.split()[1:]:
+                    name = name[1:-1].strip("@").strip("!")
+                    member = guild.get_member(int(name))
+                    print(member)
+                    if member:
+                        if member.voice:
+                            await member.edit(mute=True)
+                            await self.send(message, text=f"{author} замутил <@{name}>")
+                        else:
+                            await self.send(message, text=f"Увы, <@{name}> не в голосовом канале")
             elif "!анмут" == msg:
                 for member in author.voice.channel.members:
                     print(member)
@@ -391,9 +452,15 @@ class AmongAssBot(discord.Client):
                     "1" in msg or "2" in msg):
                 await self.game.entry_to_imposters(message, self.members_id)
             elif "импостеры" == msg:
-                await self.send(message, text=self.game.get_imposters())
+                await self.send(message, text="список импостеров: " + self.game.get_imposters())
             elif "профиль" in msg:
                 await self.game.profile(message, self.guild, self.roles_id)
+            # конец функций для игры АмонгАсс
+            elif "статистика" == msg:
+                user = session.query(User).filter(User.discord_id == str(author)).first()
+                await self.send(message,
+                                text="Послали {} раз\nПосмотрели фото\
+ {} раз\nРандомил {} раз".format(user.go_ahead, user.count_view, user.count_random))
             elif "залп!" == msg:
                 await self.send(message, text="Пиф-паф")
             elif "обработай фото" in msg:
@@ -458,6 +525,8 @@ class AmongAssBot(discord.Client):
             elif "рандом" in msg:
                 path = f"static/фото/{str(randint(1, 14))}/"
                 files = os.listdir(path=path)
+                session.query(User).filter(User.discord_id == str(author)).first().count_random += 1
+                session.commit()
                 await self.send(message,
                                 file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
             elif "волк" in msg or "ауф" in msg or "☝" in msg:

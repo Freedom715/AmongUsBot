@@ -13,6 +13,10 @@ class User(SqlAlchemyBase):
     crew_win = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     failed_game = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     discord_id = sqlalchemy.Column(sqlalchemy.String)
+    tech_id = sqlalchemy.Column(sqlalchemy.String)
+    count_view = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    count_random = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    go_ahead = sqlalchemy.Column(sqlalchemy.Integer, default=0)
 
     def __repr__(self):
         return f"Рейтинг: {self.rating}\n\
