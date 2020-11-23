@@ -134,6 +134,48 @@ class AmongAssGame():
             session.commit()
             await message.channel.send(f"поздравляю {fin_word} с победой")
 
+    async def profile(self, message, guild, roles_id):
+        def check_role_id(role_id):
+            for role in author.roles:
+                if role.id == role_id:
+                    return True, role
+            return False
+
+        session = db_session.create_session()
+        author = message.author
+        res = None
+        for user in session.query(User):
+            if user.discord_id == str(author):
+                res = user
+        names = [y.name for y in session.query(Names).filter(Names.owner_id == res.id)]
+        session.commit()
+        await message.channel.send("Ники: " + ', '.join(names))
+        await message.channel.send(str(res))
+        user = res
+        roles = ""
+        if 40 >= user.impostor_win > 20 and not check_role_id(
+                roles_id["убийца II ранга"]):
+            await author.remove_roles(guild.get_role(roles_id["убийца I ранга"]))
+            await author.add_roles(guild.get_role(roles_id["убийца II ранга"]))
+            roles = 'Вам выдан "Убийца II ранга".'
+        elif 60 >= user.impostor_win > 40 and not check_role_id(
+                roles_id["убийца III ранга"]):
+            await author.remove_roles(guild.get_role(roles_id["убийца II ранга"]))
+            await author.add_roles(guild.get_role(roles_id["убийца III ранга"]))
+            roles = 'Вам выдан "Убийца III ранга".'
+        elif 40 >= user.crew_win > 20 and not check_role_id(
+                roles_id["детектив II ранга"]):
+            await author.remove_roles(guild.get_role(roles_id["детектив I ранга"]))
+            await author.add_roles(guild.get_role(roles_id["детектив II ранга"]))
+            roles = 'Вам выдан "Детектив II ранга".'
+        elif 60 >= user.crew_win > 40 and not check_role_id(
+                roles_id["детектив III ранга"]):
+            await author.remove_roles(guild.get_role(roles_id["детектив II ранга"]))
+            await author.add_roles(guild.get_role(roles_id["детектив III ранга"]))
+            roles = 'Вам выдан "Детектив III ранга".'
+        await message.channel.send(", ".join(
+            [y.name for y in author.roles[1:]]) + "\n" + roles)
+
 
 class AmongAssBot(discord.Client):
     def __init__(self):
@@ -144,8 +186,9 @@ class AmongAssBot(discord.Client):
                          "убийца I ранга": 774185571072868373,
                          "убийца II ранга": 774185704217116672,
                          "убийца III ранга": 774185839377776680}
-        self.game = ""
+        self.game = Game(0, 0, "", "")
         self.last_photo = 0
+        self.guild = self.get_guild(710796793775915098)
         self.image_filter = {"случайные пиксели": random_pixels_color,
                              "чёрно-белые пиксели": bw_pixels,
                              "осветление": prosvet,
@@ -183,48 +226,70 @@ class AmongAssBot(discord.Client):
         await message.channel.send(text, file=file)
 
     async def call_member(self, message):
-        dct_member_calls = {"768013620730134528": ("иду, иду",
-                                                   discord.File("static/фото/autocalls/ТАНЯ.jpg")),
-                            "710796981764882444": (
-                                "Доделываю тату и иду",
-                                discord.File("static/фото/autocalls/ЕГОР.jpg")),
-                            "500302418425282560": ("Я сейчас немного занят, вот вам пока моё фото",
-                                                   discord.File(
-                                                       f"static/фото/autocalls/{randint(1, 4)}.jpg")),
-                            "584385862947569681": (
-                                "Контракты сами себя не выполнят, выполню приду", None),
-                            "551476310879240193": (
-                                f"{choice(('Артём', 'Деня'))} сам себя не выгуляет. Скоро приду.",
-                                None),
-                            "322764019721306112": (
-                                "Зачем я вернулась в кс? **Bomb has been planted** Чёрт, скоро приду.",
-                                None),
-                            "704739275329110028": ("Зачем кто-то вызвал шлюх?", None),
-                            "436582679299751938": (f"ГЫГЫ ГАГА пошёл нахуй {message.author}", None),
-                            "708037859864739890": (
-                                "Доедаю стрипсы из KFC. Мне вкусно, не зовите", None),
-                            "699592093491920897": ("Я кропива", None),
-                            "433700742797459456": (
-                                "Вы хто такие? Я вас не звал, подите на хуй!", None)}
-        member_id = message.content[1:-1].strip("@").strip("!")
-        call = dct_member_calls[member_id]
-        if call[0] != "" and call[1]:
-            await self.send(message, text=call[0], file=call[1])
-        elif call[0] != "" and call[1] is None:
-            await self.send(message, text=call[0])
-        else:
-            await self.send(message, file=call[1])
+        try:
+            dct_member_calls = {"768013620730134528": ("иду, иду",
+                                                       discord.File(
+                                                           "static/фото/autocalls/ТАНЯ.jpg")),
+                                "710796981764882444": (
+                                    "Доделываю тату и иду",
+                                    discord.File("static/фото/autocalls/ЕГОР.jpg")),
+                                "500302418425282560": (
+                                "Я сейчас немного занят, вот вам пока моё фото",
+                                discord.File(
+                                    f"static/фото/autocalls/{randint(1, 4)}.jpg")),
+                                "584385862947569681": (
+                                    "Контракты сами себя не выполнят, выполню приду", None),
+                                "551476310879240193": (
+                                    f"{choice(('Артём', 'Деня'))} сам себя не выгуляет. Скоро приду.",
+                                    None),
+                                "322764019721306112": (
+                                    "Зачем я вернулась в кс? **Bomb has been planted** Чёрт, скоро приду.",
+                                    None),
+                                "704739275329110028": ("Зачем кто-то вызвал шлюх?", None),
+                                "436582679299751938": (
+                                f"ГЫГЫ ГАГА пошёл нахуй {message.author}", None),
+                                "708037859864739890": (
+                                    "Доедаю стрипсы из KFC. Мне вкусно, не зовите", None),
+                                "699592093491920897": ("Я кропива", None),
+                                "433700742797459456": (
+                                    "Вы хто такие? Я вас не звал, подите на хуй!", None)}
+            member_id = message.content[1:-1].strip("@").strip("!")
+            call = dct_member_calls[member_id]
+            if call[0] != "" and call[1]:
+                await self.send(message, text=call[0], file=call[1])
+            elif call[0] != "" and call[1] is None:
+                await self.send(message, text=call[0])
+            else:
+                await self.send(message, file=call[1])
+        except Exception as e:
+            return "Упс! Что-то пошло не так"
 
     async def measure(self, message):
         await self.send(message,
-                        text=f"Я думаю, что это {message.split()[:2]} на {randint(0, 100)}%")
+                        text=f"Я думаю, что это {' '.join(message.content.split()[3:])} на {randint(0, 100)}%")
+
+    async def show_photo_smb(self, message):
+        try:
+            session = db_session.create_session()
+            name = session.query(Names).filter(
+                Names.name == message.content.lower().split()[2:]).first()
+            if name is None:
+                await self.send(message,
+                                text=f"Имени {name} не существует. Добавьте его вручную, либо обратитесь к админам")
+            path = f"static/фото/{name.owner_id}/"
+            files = os.listdir(path=path)
+            path = path + str(randint(1, len(files))) + ".jpg"
+            await self.send(message,
+                            file=discord.File(path))
+        except Exception as e:
+            await self.send(message,
+                            text=f"Упс! Такого файла {path} не существует. Сообщите об этом админу")
 
     async def on_message(self, message):
         url = ""
         session = db_session.create_session()
         author = message.author
         msg = message.content.lower()
-        guild = self.get_guild(710796793775915098)
         print(message.content)
         print(author)
         if message.attachments:
@@ -254,14 +319,29 @@ class AmongAssBot(discord.Client):
                 response = requests.get('https://dog.ceo/api/breeds/image/random')
                 json_response = response.json()
                 url = json_response['message']
+            elif "случайное фото" == msg:
+                whats_on_photo = "random"
+                url = f"https://picsum.photos/{randint(200, 1600)}/{randint(200, 1600)}"
+            elif "доброе утро всем" in msg:
+                await self.send(message, text="Доброе утро @everyone")
+            elif "спокойной ночи всем" in msg:
+                await self.send(message, text="Спокойной ночи @everyone")
             elif "я ем" in msg or len(list(filter(lambda x: x in ["я", "пошел", "пошла", "есть"],
                                                   msg.split()))) == 3:
                 await self.send(message, text="Приятного аппетита " + str(author))
             elif "заткнись" in msg:
                 await self.send(message, text="Сам заткнись " + str(author))
-            elif "начать игру" in msg:
-                self.game = AmongAssGame()
                 await self.game.start_game(message)
+            elif "<@" in msg and len(msg.split()) == 1:
+                await self.call_member(message)
+            elif "случайное число" in msg:
+                if "от" in msg and "до" in msg:
+                    frst_numb = int(msg.split()[-3])
+                    secnd_numb = int(msg.split()[-1])
+                    await self.send(message, text=randint(frst_numb, secnd_numb))
+                else:
+                    await self.send(message, text=randint(0, 100))
+            # функции для игры АмонгАсс
             elif "!мут" == msg:
                 for member in author.voice.channel.members:
                     print(member)
@@ -274,26 +354,13 @@ class AmongAssBot(discord.Client):
             elif "перенос" in msg.lower():
                 for member in author.voice.channel.members:
                     print(member)
-                    await member.edit(voice_channel=guild.get_channel(710797183653249104))
-                    await member.edit(voice_channel=guild.get_channel(710796794266648656))
-            elif "<@" in msg and len(msg.split()) == 1:
-                await self.call_member(message)
+                    await member.edit(voice_channel=self.guild.get_channel(710797183653249104))
+                    await member.edit(voice_channel=self.guild.get_channel(710796794266648656))
+            elif "начать игру" in msg:
+                self.game = AmongAssGame()
+                await self.game.start_game(message)
             elif "побед" in msg:
                 await self.game.win_func(message)
-            elif "случайное число" in msg:
-                if "от" in msg and "до" in msg:
-                    frst_numb = int(msg.split()[-3])
-                    secnd_numb = int(msg.split()[-1])
-                    await self.send(message, text=randint(frst_numb, secnd_numb))
-                else:
-                    await self.send(message, text=randint(0, 100))
-            elif "случайное фото" == msg:
-                whats_on_photo = "random"
-                url = f"https://picsum.photos/{randint(200, 1600)}/{randint(200, 1600)}"
-            elif "доброе утро всем" in msg:
-                await self.send(message, text="Доброе утро @everyone")
-            elif "спокойной ночи всем" in msg:
-                await self.send(message, text="Спокойной ночи @everyone")
             elif "добавить имя -" in msg:
                 user = session.query(User).filter(User.discord_id == str(author)).first()
                 name = Names(msg.split("- ")[1], user.id)
@@ -320,6 +387,13 @@ class AmongAssBot(discord.Client):
                 await self.send(message, text=list(self.get_all_members()))
             elif "экипаж" == msg:
                 await self.send(message, text=f"список экипажа: " + self.game.get_crew())
+            elif "импостер" in msg and (
+                    "1" in msg or "2" in msg):
+                await self.game.entry_to_imposters(message, self.members_id)
+            elif "импостеры" == msg:
+                await self.send(message, text=self.game.get_imposters())
+            elif "профиль" in msg:
+                await self.game.profile(message, self.guild, self.roles_id)
             elif "залп!" == msg:
                 await self.send(message, text="Пиф-паф")
             elif "обработай фото" in msg:
@@ -358,61 +432,8 @@ class AmongAssBot(discord.Client):
                     name = session.query(User).filter(User.discord_id == str(author)).first()
                     save_image(f"static/фото/{name.id}/", url)
                     await self.send(message, text="Добавлено новое ваше фото")
-            elif "покажи фото" in msg and len(message.content.split()) == 2:
-                name = session.query(Names).filter(
-                    Names.name == msg.split()[1]).first()
-                path = f"static/фото/{name.owner_id}/"
-                files = os.listdir(path=path)
-                await self.send(message,
-                                file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
-            elif "импостер" in msg and (
-                    "1" in msg or "2" in msg):
-                await self.game.entry_to_imposters(message, self.members_id)
-            elif "импостеры" == msg:
-                await self.send(message, text=self.game.get_imposters())
-            elif "профиль" in msg:
-                def check_role_id(role_id):
-                    for role in author.roles:
-                        if role.id == role_id:
-                            return True, role
-                    return False
-
-                session = db_session.create_session()
-                res = None
-                for user in session.query(User):
-                    if user.discord_id == str(author):
-                        res = user
-                names = [y.name for y in session.query(Names).filter(Names.owner_id == res.id)]
-                session.commit()
-                await self.send(message, text="Ники: " + ', '.join(names))
-                await self.send(message, text=str(res))
-                user = res
-                roles = ""
-                guild = self.get_guild(710796793775915098)
-                # bot = guild.get_member(774253134368604190)
-                if 40 >= user.impostor_win > 20 and not check_role_id(
-                        self.roles_id["убийца II ранга"]):
-                    await author.remove_roles(guild.get_role(self.roles_id["убийца I ранга"]))
-                    await author.add_roles(guild.get_role(self.roles_id["убийца II ранга"]))
-                    roles = 'Вам выдан "Убийца II ранга".'
-                elif 60 >= user.impostor_win > 40 and not check_role_id(
-                        self.roles_id["убийца III ранга"]):
-                    await author.remove_roles(guild.get_role(self.roles_id["убийца II ранга"]))
-                    await author.add_roles(guild.get_role(self.roles_id["убийца III ранга"]))
-                    roles = 'Вам выдан "Убийца III ранга".'
-                elif 40 >= user.crew_win > 20 and not check_role_id(
-                        self.roles_id["детектив II ранга"]):
-                    await author.remove_roles(guild.get_role(self.roles_id["детектив I ранга"]))
-                    await author.add_roles(guild.get_role(self.roles_id["детектив II ранга"]))
-                    roles = 'Вам выдан "Детектив II ранга".'
-                elif 60 >= user.crew_win > 40 and not check_role_id(
-                        self.roles_id["детектив III ранга"]):
-                    await author.remove_roles(guild.get_role(self.roles_id["детектив II ранга"]))
-                    await author.add_roles(guild.get_role(self.roles_id["детектив III ранга"]))
-                    roles = 'Вам выдан "Детектив III ранга".'
-                await self.send(message, text=
-                ", ".join(
-                    [y.name for y in author.roles[1:]]) + "\n" + roles)
+            elif "покажи фото" in msg and len(message.content.split()) >= 3:
+                await self.show_photo_smb(message)
             elif "помощь" in msg:
                 await self.send(message, text=
                 "Привет, я бот по игре AmongUs. Я веду статистику игр для каждого игрока.\n \
@@ -430,7 +451,7 @@ class AmongAssBot(discord.Client):
                 await self.send(message,
                                 file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
             elif "пизда" in msg:
-                path = f"static/фото/{choice(['1', '2', '3', '5', '7', '9', '10', '11', '12', '13'])}/"
+                path = f"static/фото/{choice(['1', '2', '3', '5', '7', '9', '10', '11', '12', '13', '14'])}/"
                 files = os.listdir(path=path)
                 await self.send(message,
                                 file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
