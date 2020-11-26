@@ -216,7 +216,8 @@ class AmongAssBot(discord.Client):
                            "437493349730091018": "ketso#0814",
                            "436582679299751938": "Тимоня#1006",
                            "768521164213059626": "просто Мария Алексеевна#8718",
-                           "708037859864739890": "___anion___#2509"}
+                           "708037859864739890": "___anion___#2509",
+                           "358582354622545941": "Пёрышко#3430"}
 
     async def on_ready(self):
         print(f'{self.user} has connected to Discord!')
@@ -314,8 +315,8 @@ class AmongAssBot(discord.Client):
             except Exception:
                 pass
         if max_user is not None:
-            member = guild.get_member(int(max_user.tech_id))
-            await member.add_roles(guild.get_role(self.roles_id["пидорас."]))
+            member = guild.get_member(max_user.tech_id)
+            await member.add_roles(guild.get_role(779712216467243009))
             await self.send(message, text="Новый пидарас. " + max_user.discord_id)
 
     async def go_ahead(self, message):
@@ -323,13 +324,29 @@ class AmongAssBot(discord.Client):
             session = db_session.create_session()
             name = " ".join(message.content.lower().split()[1:])
             print(name)
-            session.query(User).filter(
-                User.discord_id == self.members_id[name[2:-1].strip("!")]).first().go_ahead += 1
+            if name != "@everyone":
+                discord_id = self.members_id[name[2:-1].strip("!")]
+                session.query(User).filter(
+                    User.discord_id == discord_id).first().go_ahead += 1
+                # await self.check_fucking_rating(message)
+            else:
+                for user in session.query(User):
+                    user.go_ahead += 1
             session.commit()
-            # await self.check_fucking_rating(message)
             await self.send(message, text=f"{message.author} послал {name}")
         except Exception as e:
             await self.send(message, text=f"Упс! Послать не удалось. " + str(e))
+
+    async def add_user(self, message):
+        if "Адмены-крысы" in list(map(str, message.author.roles)):
+            msg = message.content.split(": ")[1]
+            discord_id = msg.split(", ")[0]
+            tech_id = msg.split(", ")[1]
+            session = db_session.create_session()
+            user = User(discord_id, int(tech_id))
+            session.add(user)
+            session.commit()
+            await self.send(message, text=f"Добро пожаловать в игру <@{tech_id}>")
 
     async def on_message(self, message):
         url = ""
@@ -412,6 +429,18 @@ class AmongAssBot(discord.Client):
                     print(member)
                     await member.edit(mute=False)
                 await self.send(message, text="Говорить можно")
+            elif "!анмут" in msg and len(msg.split()) >= 2:
+                guild = self.get_guild(710796793775915098)
+                for name in msg.split()[1:]:
+                    name = name[1:-1].strip("@").strip("!")
+                    member = guild.get_member(int(name))
+                    print(member)
+                    if member:
+                        if member.voice:
+                            await member.edit(mute=False)
+                            await self.send(message, text=f"{author} замутил <@{name}>")
+                        else:
+                            await self.send(message, text=f"Увы, <@{name}> не в голосовом канале")
             elif "перенос" in msg.lower():
                 for member in author.voice.channel.members:
                     print(member)
@@ -429,6 +458,8 @@ class AmongAssBot(discord.Client):
                 names = list(session.query(Names).filter(Names.owner_id == user.id).all())
                 session.commit()
                 await self.send(message, text=f"Имена: {', '.join([name.name for name in names])}")
+            if "добавить игрока" in message.content.lower():
+                await self.add_user(message)
             elif "топ" in msg:
                 check_rating()
                 if "импостер" in msg:
@@ -454,7 +485,7 @@ class AmongAssBot(discord.Client):
             elif "импостеры" == msg:
                 await self.send(message, text="список импостеров: " + self.game.get_imposters())
             elif "профиль" in msg:
-                await self.game.profile(message, self.guild, self.roles_id)
+                await self.game.profile(message, self.get_guild(710796793775915098), self.roles_id)
             # конец функций для игры АмонгАсс
             elif "статистика" == msg:
                 user = session.query(User).filter(User.discord_id == str(author)).first()

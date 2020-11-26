@@ -18,6 +18,10 @@ class User(SqlAlchemyBase):
     count_random = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     go_ahead = sqlalchemy.Column(sqlalchemy.Integer, default=0)
 
+    def __init__(self, discord_id, tech_id):
+        self.discord_id = discord_id
+        self.tech_id = tech_id
+
     def __repr__(self):
         return f"Рейтинг: {self.rating}\n\
 Кол-во игр за предателя: {self.count_impostor} \nКол-во игр\
