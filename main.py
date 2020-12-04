@@ -224,6 +224,11 @@ class AmongAssBot(discord.Client):
                            "436582679299751938": "Тимоня#1006",
                            "768521164213059626": "просто Мария Алексеевна#8718",
                            "708037859864739890": "___anion___#2509"}"""
+    def _rewrite_members_id(self):
+        session = db_session.create_session()
+        self.members_id = {str(user.tech_id): user.discord_id for user in
+                           session.query(User)}
+        session.commit()
 
     def _get_author(self, author):
         return str(author).split("#")[0]
@@ -367,6 +372,7 @@ class AmongAssBot(discord.Client):
             name = Names(first_name, int(numb))
             session.add(name)
             session.commit()
+            self._rewrite_members_id()
             path += numb
             os.mkdir(path)
             await self.send(message, text=f"Добро пожаловать в игру <@{tech_id}>")
