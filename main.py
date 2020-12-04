@@ -225,6 +225,9 @@ class AmongAssBot(discord.Client):
                            "768521164213059626": "просто Мария Алексеевна#8718",
                            "708037859864739890": "___anion___#2509"}"""
 
+    def _get_author(self, author):
+        return str(author).split("#")[0]
+
     async def on_ready(self):
         print(f'{self.user} has connected to Discord!')
         for guild in self.guilds:
@@ -263,7 +266,8 @@ class AmongAssBot(discord.Client):
                                     None),
                                 "704739275329110028": ("Зачем кто-то вызвал шлюх?", None),
                                 "436582679299751938": (
-                                    f"ГЫГЫ ГАГА пошёл нахуй {message.author}", None),
+                                    f"ГЫГЫ ГАГА пошёл нахуй {self._get_author(message.author)}",
+                                    None),
                                 "708037859864739890": (
                                     "Доедаю стрипсы из KFC. Мне вкусно, не зовите", None),
                                 "699592093491920897": ("Я кропива", None),
@@ -344,7 +348,7 @@ class AmongAssBot(discord.Client):
                 for user in session.query(User):
                     user.go_ahead += 1
             session.commit()
-            await self.send(message, text=f"{message.author} послал {name}")
+            await self.send(message, text=f"{self._get_author(message.author)} послал {name}")
         except Exception as e:
             await self.send(message, text=f"Упс! Послать не удалось. " + str(e))
 
@@ -376,9 +380,9 @@ class AmongAssBot(discord.Client):
             compliments = f.readlines()
             print(compliments)
             tech_id = content.split()[1]
-            phrase = choice(compliments).decode("utf-8").replace("1", str(message.author), 1).replace("2", tech_id, 1)
+            phrase = choice(compliments).decode("utf-8").replace("1", self._get_author(message.author),
+                                                                 1).replace("2", tech_id, 1)
             await self.send(message, text=phrase)
-
 
     async def on_message(self, message):
         url = ""
@@ -396,7 +400,7 @@ class AmongAssBot(discord.Client):
                 url = message.attachments[0].url
                 response = requests.get(url)
                 if response.status_code == 200:
-                    await self.send(message, text=f"Ах ты любитель собак, {author}",
+                    await self.send(message, text=f"Ах ты любитель собак, {self._get_author(author)}",
                                     file=get_my_files(response.content))
             if "на сколько процентов" in msg and message.attachments:
                 await self.measure(message)
@@ -426,9 +430,9 @@ class AmongAssBot(discord.Client):
             elif msg.startswith("!я") or len(
                     list(filter(lambda x: x in ["ем", "пошел", "пошла", "есть"],
                                 msg.split()))) == 3:
-                await self.send(message, text="Приятного аппетита " + str(author))
+                await self.send(message, text="Приятного аппетита " + self._get_author(author))
             elif "заткнись" in msg:
-                await self.send(message, text="Сам заткнись " + str(author))
+                await self.send(message, text="Сам заткнись " + self._get_author(author))
             elif "<@" in msg and len(msg.split()) == 1:
                 await self.call_member(message)
             elif "!случайное число" in msg:
@@ -456,7 +460,7 @@ class AmongAssBot(discord.Client):
                     if member:
                         if member.voice:
                             await member.edit(mute=True)
-                            await self.send(message, text=f"{author} замутил <@{name}>")
+                            await self.send(message, text=f"{self._get_author(author)} замутил <@{name}>")
                         else:
                             await self.send(message, text=f"Увы, <@{name}> не в голосовом канале")
             elif "!анмут" == msg:
@@ -473,7 +477,7 @@ class AmongAssBot(discord.Client):
                     if member:
                         if member.voice:
                             await member.edit(mute=False)
-                            await self.send(message, text=f"{author} замутил <@{name}>")
+                            await self.send(message, text=f"{self._get_author(author)} размутил <@{name}>")
                         else:
                             await self.send(message, text=f"Увы, <@{name}> не в голосовом канале")
             elif "!перенос" in msg.lower():
@@ -568,6 +572,8 @@ class AmongAssBot(discord.Client):
                     await self.send(message, text="Добавлено новое ваше фото")
             elif "покажи фото" in msg and len(message.content.split()) >= 3:
                 await self.show_photo_smb(message)
+            elif "негр" in msg and "пидораc" in msg:
+                await self.send(message, text="БАН")
             elif "помощь" in msg:
                 await self.send(message, text=
                 "Привет, я бот по игре AmongUs. Я веду статистику игр для каждого игрока.\n \
@@ -644,10 +650,11 @@ class AmongAssBot(discord.Client):
                 if whats_on_photo == "random":
                     await self.send(message, file=get_my_files(response.content))
                 elif whats_on_photo == "cat":
-                    await self.send(message, text=f"Ах ты любитель кошек, {message.author}",
+                    await self.send(message, text=f"Ах ты любитель кошек, {self._get_author(message.author)}",
                                     file=get_my_files(response.content))
                 elif whats_on_photo == "dog":
-                    await self.send(message, text=f"Ах ты любитель собак, {message.author}",
+                    await self.send(message,
+                                    text=f"Ах ты любитель собак, {self._get_author(message.author)}",
                                     file=get_my_files(response.content))
 
 
