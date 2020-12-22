@@ -35,7 +35,7 @@ def output_list(res):
     for i in range(1, 1 + len(res)):
         idx = session.query(User).filter(User.discord_id == res[i - 1][0]).first().id
         name = session.query(Names).filter(Names.owner_id == idx).all()
-        name = name[randint(0, len(name) - 1)].name
+        name = name[randint(0, len(name) - 1)].name if len(name) > 1 else name[0].name
         result += name.title() + ": " + str(res[i - 1][1]) + "\n"
     return result
 
@@ -532,7 +532,7 @@ class AmongAssBot(discord.Client):
             elif "профиль" in msg and command:
                 await self.game.profile(message, self.get_guild(710796793775915098), self.roles_id)
             # конец функций для игры АмонгАсс
-            elif "статистика" == msg and command:
+            elif "статистика" in msg and command:
                 user = session.query(User).filter(User.discord_id == str(author)).first()
                 await self.send(message,
                                 text="Послали {} раз\nПосмотрели фото\
@@ -564,6 +564,9 @@ class AmongAssBot(discord.Client):
                 if "рандом" in msg:
                     save_image(f"static/фото/random/", url)
                     await self.send(message, text="Добавлено фото в рандом")
+                elif "ауф" in msg:
+                    save_image(f"static/фото/волк/", url)
+                    await self.send(message, text="Все мои волки делают - АУФ:point_up:")
                 elif len(message.content.split()) > 2:
                     for name in msg.split()[2:]:
                         discord_id = self.members_id[name[2:-1].strip("!")]
@@ -576,9 +579,9 @@ class AmongAssBot(discord.Client):
                     name = session.query(User).filter(User.discord_id == str(author)).first()
                     save_image(f"static/фото/{name.id}/", url)
                     await self.send(message, text="Добавлено новое ваше фото")
-            elif "покажи фото" in msg and len(message.content.split()) >= 3:
+            elif "покажи фото" in msg and len(message.content.split()) >= 3 and command:
                 await self.show_photo_smb(message)
-            elif "негр" in msg and "пидораc" in msg:
+            elif "негр" in msg or "пидорас" in msg:
                 await self.send(message, text="БАН")
             elif "помощь" in msg:
                 await self.send(message, text=
@@ -597,12 +600,25 @@ class AmongAssBot(discord.Client):
                 await self.send(message,
                                 file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
             elif "пизд" in msg:
-                path = f"static/фото/{choice(['1', '2', '3', '5', '7', '9', '10', '11', '12', '13', '14'])}/"
+                path = f"static/фото/{choice(['1', '2', '3', '5', '9', '12', '13', '14'])}/"
                 files = os.listdir(path=path)
                 await self.send(message,
                                 file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
             elif "рандом" in msg:
-                path = f"static/фото/{str(randint(1, 14))}/"
+                session = db_session.create_session()
+                path = f"static/фото/{choice((str(randint(1, len(session.query(User).all()))), 'random'))}/"
+                while "7" in path or "10" in path or "11" in path:
+                    path = f"static/фото/{choice((str(randint(1, 14)), 'random'))}/"
+                files = os.listdir(path=path)
+                session.query(User).filter(User.discord_id == str(author)).first().count_random += 1
+                session.commit()
+                await self.send(message,
+                                file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
+            elif "настроение" in msg and command:
+                session = db_session.create_session()
+                path = f"static/фото/{choice((str(randint(1, len(session.query(User).all())))))}/"
+                while "7" in path or "10" in path or "11" in path:
+                    path = f"static/фото/{choice((str(randint(1, 14)), 'random'))}/"
                 files = os.listdir(path=path)
                 session.query(User).filter(User.discord_id == str(author)).first().count_random += 1
                 session.commit()
