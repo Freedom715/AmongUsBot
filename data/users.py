@@ -17,6 +17,7 @@ class User(SqlAlchemyBase):
     count_view = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     count_random = sqlalchemy.Column(sqlalchemy.Integer, default=0)
     go_ahead = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    compliment = sqlalchemy.Column(sqlalchemy.Integer, default=0)
 
     def __init__(self, discord_id, tech_id):
         self.discord_id = discord_id

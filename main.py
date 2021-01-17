@@ -1,11 +1,14 @@
 import io
 import os
+import time
+import zipfile
 from random import randint, choice
 
 import discord
 import pymorphy2
 import requests
 from discord.ext import commands
+from gtts import gTTS
 
 from analize import analyze_image_dog
 from config import settings
@@ -192,6 +195,8 @@ class AmongAssBot(discord.Client):
     def __init__(self):
         super().__init__()
         session = db_session.create_session()
+        self.permission_to_voice = True
+        self.permission_to_a = True
         self.roles_id = {"детектив I ранга": 774184288303448075,
                          "детектив II ранга": 774185308912484363,
                          "детектив III ранга": 774185310786420738,
@@ -224,6 +229,7 @@ class AmongAssBot(discord.Client):
                            "436582679299751938": "Тимоня#1006",
                            "768521164213059626": "просто Мария Алексеевна#8718",
                            "708037859864739890": "___anion___#2509"}"""
+
     def _rewrite_members_id(self):
         session = db_session.create_session()
         self.members_id = {str(user.tech_id): user.discord_id for user in
@@ -250,6 +256,7 @@ class AmongAssBot(discord.Client):
         await message.channel.send(text, file=file)
 
     async def call_member(self, message):
+        await self.play_sounds(message)
         try:
             dct_member_calls = {"768013620730134528": ("иду, иду",
                                                        discord.File(
@@ -353,6 +360,7 @@ class AmongAssBot(discord.Client):
                 for user in session.query(User):
                     user.go_ahead += 1
             session.commit()
+            self.player.disconnect()
             await self.send(message, text=f"{self._get_author(message.author)} послал {name}")
         except Exception as e:
             await self.send(message, text=f"Упс! Послать не удалось. " + str(e))
@@ -377,6 +385,75 @@ class AmongAssBot(discord.Client):
             os.mkdir(path)
             await self.send(message, text=f"Добро пожаловать в игру <@{tech_id}>")
 
+    async def play_sounds(self, message):
+        try:
+            self.vc = message.author.voice.channel
+            self.player = await self.vc.connect()
+        except Exception:
+            pass
+        msg = message.content.lower()
+        zipFile = zipfile.ZipFile('static/sounds/sounds.zip', 'r')
+        path = "TEMP/"
+        sounds = {"а": "Aaa.mp3",
+                  "300": "300_bucks(gachi).mp3",
+                  "раздражение": "annoyance.mp3",
+                  "бесит": "becit.mp3",
+                  "больно": "Bolb.mp3",
+                  "егор": "BoyNextDoor(gachi).mp3",
+                  "bruh": "bruh.mp3",
+                  "cum": "cuming(gachi).mp3",
+                  "понты": "dzhip.mp3",
+                  "ass": "finger(gachi).mp3",
+                  "fuck": "fuck_you(gachi).mp3",
+                  "уйди": "go_away.mp3",
+                  "досвидания": "goodbye.mp3",
+                  "ухожу": "I_going.mp3",
+                  "сейчас приду": "I_go.mp3",
+                  "никогда": "I_never_do_it(gachi).mp3",
+                  "master": "master(gachi).mp3",
+                  "морская пехота": "morskaya.mp3",
+                  "непрофи": "nonprofi.mp3",
+                  "нормально": "normalna.mp3",
+                  "оса": "oca.mp3",
+                  "пидорас": "one.mp3",
+                  "я вас не звал": "podite_nahui.mp3",
+                  "вы объебосы": "russian.mp3",
+                  "slaves": "slaves(gachi).mp3",
+                  "извини": "sorry(gachi).mp3",
+                  "стартуем": "start.mp3",
+                  "suck": "suck_some_dick(gachi).mp3",
+                  "чай": "tea.mp3",
+                  "вы мне надоели": "tired.mp3",
+                  "упал-отжался": "vdox_vidox.mp3",
+                  "каво": "what_the_fuck.mp3",
+                  "я начну стрелять": "ya_nachnu_strelyat.mp3",
+                  "да": "yes.mp3",
+                  "уволен": "yvolen.mp3",
+                  "шиндовс": "шиндовс.mp3",
+                  "ебать мой лысый": "bold_dick.mp3",
+                  "минус три": "minus_three.mp3",
+                  "пошло всё в": "pizda.mp3", "пидарас": "pidaras.mp3", "": ""}
+        if self.permission_to_voice:
+            try:
+                if msg == 'а':
+                    if self.permission_to_a:
+                        zipFile.extract(sounds[msg], path=path[:-1])
+                    else:
+                        path = None
+                else:
+                    zipFile.extract(sounds[msg], path=path[:-1])
+            except Exception:
+                if "мут" not in msg:
+                    await self.send(message, text="Не существует реакции на " + msg)
+            if path:
+                os.rename(path + sounds[msg], path + "sound.mp3")
+                source = await discord.FFmpegOpusAudio.from_probe(path + "sound.mp3")
+                self.player.play(source)
+                while self.player.is_playing():
+                    time.sleep(1)
+                os.remove(path + "sound.mp3")
+                print("OK")
+
     async def get_compliment(self, message):
         content = message.content
         if len(content.split()) == 1:
@@ -390,6 +467,37 @@ class AmongAssBot(discord.Client):
                                                                  1).replace("2", tech_id, 1)
             await self.send(message, text=phrase)
 
+    async def delete_photo(self, msg, user_id):
+        numb = msg.content.split()[1]
+        path = f"static/фото/{user_id}/{numb}.jpg"
+        f = discord.File(path)
+        await self.send(msg, file=f)
+        os.remove(path)
+        i = 1
+        for filename in sorted(os.listdir(f"static/фото/{user_id}"),
+                               key=lambda x: int(x.strip(".jpg"))):
+            print(filename)
+            if filename != f"{i}.jpg":
+                os.rename(f"static/фото/{user_id}/{filename}", f"static/фото/{user_id}/{i}.jpg")
+            i += 1
+        await self.send(msg, text="В последний раз полюбуйтесь этой красотой.")
+
+    async def google_to_speech(self, message, msg, lang="ru"):
+        try:
+            self.vc = message.author.voice.channel
+            self.player = await self.vc.connect()
+        except Exception:
+            pass
+        if lang != "ru":
+            source = await discord.FFmpegOpusAudio.from_probe("static/sounds/blyat.mp3")
+        else:
+            gTTS(text=msg, lang="ru", slow=False).save("TEMP/gTTS.mp3")
+            source = await discord.FFmpegOpusAudio.from_probe("TEMP/gTTS.mp3")
+        self.player.play(source)
+        while self.player.is_playing():
+            time.sleep(1)
+        os.remove("TEMP/gTTS.mp3")
+
     async def on_message(self, message):
         url = ""
         session = db_session.create_session()
@@ -402,33 +510,69 @@ class AmongAssBot(discord.Client):
         if message.attachments:
             print(message.attachments[0].filename)
         if str(author) != "AmongAss#3527":
+            print(message.channel.id)
+            # if str(message.channel.id) == "797083398127878165" or str(message.channel.id) == "774251082242195487":
+            if str(message.channel.id) == "797083398127878165":
+                if "мут а" == msg and self.check_admin(message):
+                    self.permission_to_a = False
+                    await self.send(message, text="Я больше не буду кричать")
+                elif "анмут а" == msg and self.check_admin(message):
+                    self.permission_to_a = True
+                    await self.send(message, text="УрАААААААА!")
+                elif "мут войс" == msg and self.check_admin(message):
+                    self.permission_to_voice = False
+                    await self.send(message, text="Я нем как рыба")
+                elif "анмут войс" == msg and self.check_admin(message):
+                    self.permission_to_voice = True
+                    await self.send(message, text="Я снова могу говорить")
+                if self.permission_to_voice:
+                    if "в гс" in msg:
+                        self.vc = message.author.voice.channel
+                        self.player = await self.vc.connect()
+                    elif "из гс" in msg:
+                        await self.player.disconnect()
+                    else:
+                        await self.play_sounds(message)
             if len(message.attachments) > 0 and "нейросеть" == msg:
                 url = message.attachments[0].url
                 response = requests.get(url)
                 if response.status_code == 200:
                     await self.send(message, text=f"Ах ты любитель собак, {self._get_author(author)}",
                                     file=get_my_files(response.content))
-            if "на сколько процентов" in msg and message.attachments:
+
+            elif "скажи:" in msg or "say:" in msg:
+                if message.author.voice.channel:
+                    msg = msg.split(": ")[1].strip('"')
+                    name = list(filter(lambda x: x.startswith("<@"), msg.split()))
+                    if name:
+                        msg = msg.replace(name, self.members_id[name[0][2:-1].strip("!")].split("#")[0])
+                    await self.google_to_speech(message, msg)
+                else:
+                    await self.send(message, text="Вы не в гс")
+            elif "на сколько процентов" in msg and message.attachments:
                 await self.measure(message)
             elif message.attachments and "обезьяна" in msg and "какая" in msg:
                 await self.send(message,
                                 text="Я думаю, что это " + choice(
                                     ['шимпанзе', 'гибон', 'пажилой гибон', 'орангутан', 'макака',
                                      'красножопая обезьяна']))
-            if "!кот" == msg or "!кошка" == msg:
+            elif ("кот" == msg or "кошка" == msg) and command:
                 whats_on_photo = "cat"
                 response = requests.get('https://api.thecatapi.com/v1/images/search')
                 json_response = response.json()
                 url = json_response[0]['url']
-            elif "!собака" == msg or "1кабель" == msg:
+            elif ("собака" == msg or "кабель" == msg) and command:
                 whats_on_photo = "dog"
                 response = requests.get('https://dog.ceo/api/breeds/image/random')
                 json_response = response.json()
                 url = json_response['message']
-            elif "!случайное фото" == msg:
+            elif "!из гс" == msg:
+                self.player.disconnect()
+            elif "да" == msg.split():
+                await self.play_sounds(message)
+            elif "случайное фото" == msg and command:
                 whats_on_photo = "random"
                 url = f"https://picsum.photos/{randint(200, 1600)}/{randint(200, 1600)}"
-
             elif "доброе утро всем" in msg:
                 await self.send(message, text="Доброе утро @everyone")
             elif "спокойной ночи всем" in msg:
@@ -450,7 +594,7 @@ class AmongAssBot(discord.Client):
                     await self.send(message, text=randint(0, 100))
             elif "комплимент" in msg and command:
                 await self.get_compliment(message)
-            elif "!пшлнх" in msg or "!пошелнах" in msg:
+            elif "пшлнх" in msg or "пошелнах" in msg and command:
                 await self.go_ahead(message)
             # функции для игры АмонгАсс
             elif "!мут" == msg:
@@ -466,7 +610,8 @@ class AmongAssBot(discord.Client):
                     if member:
                         if member.voice:
                             await member.edit(mute=True)
-                            await self.send(message, text=f"{self._get_author(author)} замутил <@{name}>")
+                            await self.send(message,
+                                            text=f"{self._get_author(author)} замутил <@{name}>")
                         else:
                             await self.send(message, text=f"Увы, <@{name}> не в голосовом канале")
             elif "!анмут" == msg:
@@ -483,7 +628,8 @@ class AmongAssBot(discord.Client):
                     if member:
                         if member.voice:
                             await member.edit(mute=False)
-                            await self.send(message, text=f"{self._get_author(author)} размутил <@{name}>")
+                            await self.send(message,
+                                            text=f"{self._get_author(author)} размутил <@{name}>")
                         else:
                             await self.send(message, text=f"Увы, <@{name}> не в голосовом канале")
             elif "!перенос" in msg.lower():
@@ -525,7 +671,7 @@ class AmongAssBot(discord.Client):
             elif "экипаж" == msg and command:
                 await self.send(message, text=f"список экипажа: " + self.game.get_crew())
             elif "импостер" in msg and (
-                    "1" in msg or "2" in msg) and command:
+                    "1" in msg or "2" in msg):
                 await self.game.entry_to_imposters(message, self.members_id)
             elif "импостеры" == msg and command:
                 await self.send(message, text="список импостеров: " + self.game.get_imposters())
@@ -536,7 +682,8 @@ class AmongAssBot(discord.Client):
                 user = session.query(User).filter(User.discord_id == str(author)).first()
                 await self.send(message,
                                 text="Послали {} раз\nПосмотрели фото\
- {} раз\nРандомил {} раз".format(user.go_ahead, user.count_view, user.count_random))
+ {} раз\nРандомил {} раз\nДелали комплимент {} раз".format(user.go_ahead, user.count_view,
+                                                           user.count_random, user.compliment))
             elif "залп!" == msg:
                 await self.send(message, text="Пиф-паф")
             elif "обработай фото" in msg and command:
@@ -579,9 +726,19 @@ class AmongAssBot(discord.Client):
                     name = session.query(User).filter(User.discord_id == str(author)).first()
                     save_image(f"static/фото/{name.id}/", url)
                     await self.send(message, text="Добавлено новое ваше фото")
+            elif "удали" in msg and "фото" in msg and command:
+                if self.check_admin(message):
+                    discord_id = self.members_id[msg.split()[-1][2:-1].strip("!")]
+                    user = session.query(User).filter(
+                        User.discord_id == discord_id).first()
+                    await self.delete_photo(message, user.id)
+                else:
+                    user = session.query(User).filter(
+                        User.discord_id == str(author)).first()
+                    await self.delete_photo(message, user.id)
             elif "покажи фото" in msg and len(message.content.split()) >= 3 and command:
                 await self.show_photo_smb(message)
-            elif "негр" in msg or "пидорас" in msg:
+            elif "негр" in msg or "пидорас" in msg or "пидарас" in msg or "нигга" in msg or "ниггер" in msg or "нигер" in msg:
                 await self.send(message, text="БАН")
             elif "помощь" in msg:
                 await self.send(message, text=
@@ -616,7 +773,7 @@ class AmongAssBot(discord.Client):
                                 file=discord.File(path + str(randint(1, len(files))) + ".jpg"))
             elif "настроение" in msg and command:
                 session = db_session.create_session()
-                path = f"static/фото/{choice((str(randint(1, len(session.query(User).all())))))}/"
+                path = f"static/фото/{choice((str(randint(2, len(session.query(User).all())))))}/"
                 while "7" in path or "10" in path or "11" in path:
                     path = f"static/фото/{choice((str(randint(1, 14)), 'random'))}/"
                 files = os.listdir(path=path)
@@ -672,7 +829,8 @@ class AmongAssBot(discord.Client):
                 if whats_on_photo == "random":
                     await self.send(message, file=get_my_files(response.content))
                 elif whats_on_photo == "cat":
-                    await self.send(message, text=f"Ах ты любитель кошек, {self._get_author(message.author)}",
+                    await self.send(message,
+                                    text=f"Ах ты любитель кошек, {self._get_author(message.author)}",
                                     file=get_my_files(response.content))
                 elif whats_on_photo == "dog":
                     await self.send(message,
